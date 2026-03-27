@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+</head>
+<body>
+    <div>
+        <h1>Регистрация</h1>
+    </div>
+    <div>
+        <form action="{{ url_for('login') }}" method="get">
+            <button type="submit">Вход</button>
+        </form>
+    </div>
+    <div>
+        <form method="post">
+            <input type="text" name="login">
+            <input type="password" name="password">
+            <button type="submit">Зарегистрироваться</button>
+        </form>
+    </div>
+</body>
+</html>
