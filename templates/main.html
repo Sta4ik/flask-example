@@ -9,5 +9,10 @@
     <div>
         <h1>Привет, {{ login }}</h1>
     </div>
+    <div>
+        <form action="{{ url_for('logout') }}" method="get">
+            <button type="submit">Выйти</button>
+        </form>
+    </div>
 </body>
 </html>

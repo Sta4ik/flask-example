@@ -9,6 +9,9 @@
     <div>
         <h1>Вход</h1>
     </div>
+    {% if error %}
+        <p style="color: red">{{ error }}</p>
+    {% endif %}
     <div>
         <form action="{{ url_for('reg') }}" method="get">
             <button type="submit">Регистрация</button>
