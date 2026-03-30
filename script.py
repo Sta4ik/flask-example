@@ -6,7 +6,7 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///first.db'
 db = SQLAlchemy(app)
 app.secret_key = 'sqfdfsdg'
-app.permanent_session_lifetime = timedelta(minutes=1)
+app.permanent_session_lifetime = timedelta(minutes=3)
 
 class Users(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -69,6 +69,25 @@ def main():
 def logout():
     session.pop('login', None)
     return redirect('/login')
+
+@app.route('/changepassword', methods=['POST', 'GET'])
+def changepassword():
+    if 'login' not in session:
+        return redirect('/login')
+    
+    if request.method == "POST":
+        oldpassword = request.form['oldpassword']
+        newpassword = request.form['newpassword']
+
+        user = Users.query.filter_by(login=session['login']).first()
+        if user.password != oldpassword:
+            return render_template('changepassword.html', error="Старый пароль не верный")
+        else:
+            user.password = newpassword
+            db.session.commit()
+            return redirect('/main')
+    else:  
+        return render_template('changepassword.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -1,11 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Main</title>
-</head>
-<body>
+{% extends 'base.html' %}
+
+{% block title %}Main{% endblock %}
+
+{% block content %}
     <div>
         <h1>Привет, {{ login }}</h1>
     </div>
@@ -13,6 +10,8 @@
         <form action="{{ url_for('logout') }}" method="get">
             <button type="submit">Выйти</button>
         </form>
+        <form action="{{ url_for('changepassword') }}" method="get">
+            <button type="submit">Смена пароля</button>
+        </form>
     </div>
-</body>
-</html>
+{% endblock %}

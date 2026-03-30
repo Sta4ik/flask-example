@@ -1,11 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register</title>
-</head>
-<body>
+{% extends 'base.html' %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
     <div>
         <h1>Регистрация</h1>
     </div>
@@ -24,5 +21,4 @@
             <button type="submit">Зарегистрироваться</button>
         </form>
     </div>
-</body>
-</html>
+{% endblock %}
