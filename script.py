@@ -1,6 +1,7 @@
 from flask import Flask, render_template, url_for, request, redirect, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import timedelta
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///first.db'
@@ -21,7 +22,7 @@ with app.app_context():
 def reg():
     if request.method == "POST":
         login = request.form['login']
-        password = request.form['password']
+        password = generate_password_hash(request.form['password'])
 
         user = Users(login=login, password=password)
 
@@ -46,7 +47,7 @@ def login():
         if not user:
             return render_template('login.html', error="Пользователя не существует")
 
-        if user.password != password:
+        if not check_password_hash(user.password, password):
             return render_template('login.html', error="Неверный пароль")
         else:
             session.permanent = True
@@ -80,10 +81,10 @@ def changepassword():
         newpassword = request.form['newpassword']
 
         user = Users.query.filter_by(login=session['login']).first()
-        if user.password != oldpassword:
+        if not check_password_hash(user.password, oldpassword):
             return render_template('changepassword.html', error="Старый пароль не верный")
         else:
-            user.password = newpassword
+            user.password = generate_password_hash(newpassword)
             db.session.commit()
             return redirect('/main')
     else:  
