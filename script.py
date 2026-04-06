@@ -2,17 +2,39 @@ from flask import Flask, render_template, url_for, request, redirect, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_simple_captcha import CAPTCHA
+import credits as cr
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///first.db'
+app.config['SQLALCHEMY_BINDS'] = {
+    'use_db': 'sqlite:///use.db'
+}
 db = SQLAlchemy(app)
-app.secret_key = 'sqfdfsdg'
+app.secret_key = f'{cr.secret_key}'
 app.permanent_session_lifetime = timedelta(minutes=3)
+SIMPLE_CAPTCHA = CAPTCHA(config=cr.YOUR_CONFIG)
+app = SIMPLE_CAPTCHA.init_app(app)
 
 class Users(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     login = db.Column(db.String(20), unique=True)
     password = db.Column(db.String(200), nullable=False)
+
+class Role(db.Model):
+    __bind_key__ = 'use_db'
+    id = db.Column(db.Integer, primary_key=True)
+    role_name = db.Column(db.String(20))
+
+class UserInfo(db.Model):
+    __bind_key__ = 'use_db'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(20))
+    surname = db.Column(db.String(20))
+    login = db.Column(db.String(20), unique=True)
+    email = db.Column(db.String(32))
+    role = db.Column(db.Integer, db.ForeignKey('role.id'))
+    datebirth = db.Column(db.Date)
 
 with app.app_context():
     db.create_all()
@@ -20,21 +42,33 @@ with app.app_context():
 @app.route('/', methods=['POST', 'GET'])
 @app.route('/reg', methods=['POST', 'GET'])
 def reg():
+    generatedCaptcha = SIMPLE_CAPTCHA.create()
     if request.method == "POST":
         login = request.form['login']
-        password = generate_password_hash(request.form['password'])
-
-        user = Users(login=login, password=password)
+        password = request.form['password']
+        repeatPassword = request.form['repeatpassword']
+        if password != repeatPassword:
+            return render_template('reg.html', error="Пароли не совпадают", captcha=generatedCaptcha)
+        else:
+            c_hash = request.form.get('captcha-hash')
+            c_text = request.form.get('captcha-text')
+            if not SIMPLE_CAPTCHA.verify(c_text, c_hash):
+                return render_template('reg.html', error="Неверная капча", captcha=generatedCaptcha)
+            else:
+                password = generate_password_hash(password)
+                user = Users(login=login, password=password)
 
         try:
             db.session.add(user)
             db.session.commit()
             
-            return redirect('/login')
+            session.permanent = True
+            session['login'] = login
+            return redirect('/main')
         except:
-            return render_template('reg.html', error="Данный пользователь уже существует")
+            return render_template('reg.html', error="Данный пользователь уже существует", captcha=generatedCaptcha)
     else:
-        return render_template('reg.html')
+        return render_template('reg.html', captcha=generatedCaptcha)
 
 @app.route('/login', methods=['POST', 'GET'])
 def login():
@@ -89,6 +123,18 @@ def changepassword():
             return redirect('/main')
     else:  
         return render_template('changepassword.html')
+    
+@app.route('/account', methods=['POST', 'GET'])
+def account():
+    if 'login' not in session:
+        return redirect('/login')
+    
+    if request.method == "POST":
+        pass
+    else:
+        return render_template('account.html')
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)

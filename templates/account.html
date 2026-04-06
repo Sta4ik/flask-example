@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}Main{% endblock %}
+
+{% block content %}
+    <div>
+        <h1>Привет, {{ login }}</h1>
+    </div>
+    <div>
+        <form action="{{ url_for('logout') }}" method="get">
+            <button type="submit">Выйти</button>
+        </form>
+        <form method="post">
+            <input type="text" name="login" placeholder="Логин" value="{{ login }}">
+            <input type="text" name="name" placeholder="Имя">
+            <input type="text" name="surname" placeholder="Фамилия">
+            <input type="email" name="email" placeholder="Почта">
+            <select name="role">
+                <option value="">-- Выберите роль --</option>
+                <option value="role">{{ role }}</option>
+                <option value="role">{{ role }}</option>
+            </select>
+            <input type="date" name="datebirth" placeholder="Дата рождения">
+            <button type="submit">Заполнить</button>
+        </form>
+    </div>
+{% endblock %}
