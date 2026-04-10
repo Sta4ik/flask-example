@@ -4,6 +4,7 @@ from datetime import timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_simple_captcha import CAPTCHA
 import credits as cr
+from datetime import datetime
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///first.db'
@@ -57,9 +58,11 @@ def reg():
             else:
                 password = generate_password_hash(password)
                 user = Users(login=login, password=password)
+                userInfo = UserInfo(login=login)
 
         try:
             db.session.add(user)
+            db.session.add(userInfo)
             db.session.commit()
             
             session.permanent = True
@@ -126,13 +129,34 @@ def changepassword():
     
 @app.route('/account', methods=['POST', 'GET'])
 def account():
+    roleList = Role.query.all()
     if 'login' not in session:
         return redirect('/login')
     
     if request.method == "POST":
-        pass
+        name = request.form['name']
+        surname = request.form['surname']
+        email = request.form['email']
+        dateBirth = datetime.strptime(request.form['datebirth'], '%Y-%m-%d')
+        role = request.form['role']
+
+        try:
+            info = UserInfo.query.filter_by(login=session['login']).first()
+
+            info.name = name
+            info.surname = surname
+            info.email = email
+            info.role = role
+            info.datebirth = dateBirth
+
+            
+            db.session.commit()
+
+            return redirect('/account')
+        except:
+            return "Ошибка"
     else:
-        return render_template('account.html')
+        return render_template('account.html', login=session['login'], roleList=roleList)
 
 
 
