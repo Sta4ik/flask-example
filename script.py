@@ -1,15 +1,15 @@
 from flask import Flask, render_template, url_for, request, redirect, session
 from flask_sqlalchemy import SQLAlchemy
-from datetime import timedelta
+from sqlalchemy import text
+from datetime import timedelta, datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_simple_captcha import CAPTCHA
 import credits as cr
-from datetime import datetime
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///first.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = f"mssql+pymssql://{cr.login}:{cr.password}@{cr.server}:1433/{cr.firstDB}"
 app.config['SQLALCHEMY_BINDS'] = {
-    'use_db': 'sqlite:///use.db'
+    'use_db': f"mssql+pymssql://{cr.login}:{cr.password}@{cr.server}:1433/{cr.secondDB}"
 }
 db = SQLAlchemy(app)
 app.secret_key = f'{cr.secret_key}'
@@ -58,11 +58,10 @@ def reg():
             else:
                 password = generate_password_hash(password)
                 user = Users(login=login, password=password)
-                userInfo = UserInfo(login=login)
 
         try:
-            db.session.add(user)
-            db.session.add(userInfo)
+            sql = text(f"INSERT INTO {cr.firstDB}.dbo.users VALUES('{login}', '{password}')")
+            db.session.execute(sql)
             db.session.commit()
             
             session.permanent = True
@@ -137,9 +136,11 @@ def account():
         name = request.form['name']
         surname = request.form['surname']
         email = request.form['email']
-        dateBirth = datetime.strptime(request.form['datebirth'], '%Y-%m-%d')
         role = request.form['role']
-
+        try:
+            dateBirth = datetime.strptime(request.form['datebirth'], '%Y-%m-%d')
+        except:
+            return render_template('account.html', login=session['login'], roleList=roleList, error='Неверный формат даты')
         try:
             info = UserInfo.query.filter_by(login=session['login']).first()
 
@@ -148,18 +149,16 @@ def account():
             info.email = email
             info.role = role
             info.datebirth = dateBirth
-
-            
+ 
             db.session.commit()
 
             return redirect('/account')
         except:
-            return "Ошибка"
+            return render_template('account.html', login=session['login'], roleList=roleList, error='Ошибка при отправке данных')
     else:
         return render_template('account.html', login=session['login'], roleList=roleList)
 
 
-
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, ssl_context='adhoc')
     db.create_all()
