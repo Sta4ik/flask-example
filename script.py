@@ -5,6 +5,11 @@ from datetime import timedelta, datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_simple_captcha import CAPTCHA
 import credits as cr
+from ldap3 import Server, Connection, ALL, SUBTREE, NTLM, SASL, GSSAPI
+from ldap3.core.exceptions import LDAPBindError, LDAPException
+import win32security
+import win32api
+import winkerberos
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = f"mssql+pymssql://{cr.login}:{cr.password}@{cr.server}:1433/{cr.firstDB}"
@@ -75,25 +80,79 @@ def reg():
 @app.route('/login', methods=['POST', 'GET'])
 def login():
     if request.method == "POST":
+        ad = request.form.get('AD')
+    
         login = request.form['login']
         password = request.form['password']
 
-        user = Users.query.filter_by(login=login).first()
-        
-        if not user:
-            return render_template('login.html', error="Пользователя не существует")
+        if not ad:
+            user = Users.query.filter_by(login=login).first()
+            
+            if not user:
+                return render_template('login.html', error="Пользователя не существует")
 
-        if not check_password_hash(user.password, password):
-            return render_template('login.html', error="Неверный пароль")
+            if not check_password_hash(user.password, password):
+                return render_template('login.html', error="Неверный пароль")
+            else:
+                session.permanent = True
+                session['login'] = login
+                return redirect('/main')
         else:
-            session.permanent = True
-            session['login'] = login
-            return redirect('/main')
+            LDAP_SERVER = 'ldap://internet.loc'
+            LDAP_USER_DN_TEMPLATE = '{login}@internet.loc'
+            user_dn = LDAP_USER_DN_TEMPLATE.format(login=login)
+            try:
+                server = Server(LDAP_SERVER, get_info=ALL)
+                conn = Connection(server, user=user_dn, password=password, auto_bind=False)
+                
+                if conn.bind():
+                    conn.unbind()
+                    session['login'] = login
+                    return redirect('/main')
+                else:
+                    return render_template('login.html', error="Неверный логин или пароль")
+
+            except LDAPBindError:
+                return render_template('login.html', error="Неверный логин или пароль")
+            except Exception as e:
+                return render_template('login.html', error=f"Ошибка подключения к LDAP: {str(e)}")
+
     else:
         if 'login' in session:
             return redirect('/main')
-        
-        return render_template('login.html')
+
+        try:
+            token = win32security.OpenProcessToken(
+                win32api.GetCurrentProcess(),
+                win32security.TOKEN_QUERY
+            )
+            user_info = win32security.GetTokenInformation(token, win32security.TokenUser)
+            sid = user_info[0]
+            username, domain, _ = win32security.LookupAccountSid(None, sid)
+
+            spn = "ldap/DC.internet.loc"
+
+            result, context = winkerberos.authGSSClientInit(
+                spn,
+                gssflags=winkerberos.GSS_C_MUTUAL_FLAG | winkerberos.GSS_C_SEQUENCE_FLAG
+            )
+
+            winkerberos.authGSSClientStep(context, "")
+            kerberos_token = winkerberos.authGSSClientResponse(context)
+
+            server = Server("ldap://DC.internet.loc", get_info=ALL)
+            conn = Connection(
+                server,
+                authentication=SASL,
+                sasl_mechanism=GSSAPI,
+                auto_bind=True
+            )
+
+            session['login'] = username
+            return redirect('/main')
+
+        except Exception as e:
+            return render_template('login.html', error=f'Ошибка SSO: {str(e)}')
 
 @app.route('/main')
 def main():
