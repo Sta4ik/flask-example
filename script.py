@@ -108,6 +108,10 @@ def login():
                 if conn.bind():
                     conn.unbind()
                     session['login'] = login
+                    if not UserInfo.query.filter_by(login=login).first():
+                        user = UserInfo(login=username)
+                        db.session.add(user)
+                        db.session.commit()
                     return redirect('/main')
                 else:
                     return render_template('login.html', error="Неверный логин или пароль")
@@ -147,9 +151,16 @@ def login():
                 sasl_mechanism=GSSAPI,
                 auto_bind=True
             )
-
-            session['login'] = username
-            return redirect('/main')
+ 
+            try:
+                session['login'] = username
+                if not UserInfo.query.filter_by(login=username).first():
+                    user = UserInfo(login=username)
+                    db.session.add(user)
+                    db.session.commit()
+                return redirect('/main')
+            except:
+                return render_template('login.html', error="Ошибка добавление в БД")
 
         except Exception as e:
             return render_template('login.html', error=f'Ошибка SSO: {str(e)}')
